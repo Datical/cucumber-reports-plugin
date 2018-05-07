@@ -2,6 +2,7 @@ package net.masterthought.jenkins;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,41 +24,53 @@ import jenkins.tasks.SimpleBuildStep;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tools.ant.DirectoryScanner;
+import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
+import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 import net.masterthought.cucumber.Reportable;
+import net.masterthought.cucumber.sorting.SortingMethod;
 
 public class CucumberReportPublisher extends Publisher implements SimpleBuildStep {
 
     private final static String DEFAULT_FILE_INCLUDE_PATTERN = "**/*.json";
+    private final static String DEFAULT_FILE_INCLUDE_PATTERN_CLASSIFICATIONS = "**/*.properties";
 
     private final static String TRENDS_DIR = "cucumber-reports";
     private final static String TRENDS_FILE = "cucumber-trends.json";
 
-    public final String jsonReportDirectory;
-    public final String fileIncludePattern;
-    public final String fileExcludePattern;
+    private final String fileIncludePattern;
+    private String fileExcludePattern = "";
+    private String jsonReportDirectory = "";
 
-    public final int failedStepsNumber;
-    public final int skippedStepsNumber;
-    public final int pendingStepsNumber;
-    public final int undefinedStepsNumber;
-    public final int failedScenariosNumber;
-    public final int failedFeaturesNumber;
-    public final String buildStatus;
+    private int failedStepsNumber;
+    private int skippedStepsNumber;
+    private int pendingStepsNumber;
+    private int undefinedStepsNumber;
+    private int failedScenariosNumber;
+    private int failedFeaturesNumber;
+    private String buildStatus;
 
     private int trendsLimit;
     private boolean parallelTesting;
+    private String sortingMethod = SortingMethod.NATURAL.name();
     private List<Classification> classifications = Collections.emptyList();
+    private String classificationsFilePattern = "";
 
     @DataBoundConstructor
+    public CucumberReportPublisher(String fileIncludePattern) {
+        this.fileIncludePattern = fileIncludePattern;
+    }
+
+    @Deprecated
     public CucumberReportPublisher(String jsonReportDirectory, String fileIncludePattern, String fileExcludePattern,
                                    int failedStepsNumber, int skippedStepsNumber, int pendingStepsNumber,
                                    int undefinedStepsNumber, int failedScenariosNumber, int failedFeaturesNumber,
-                                   String buildStatus) {
+                                   String buildStatus, String sortingMethod) {
 
         this.jsonReportDirectory = jsonReportDirectory;
         this.fileIncludePattern = fileIncludePattern;
@@ -68,8 +81,20 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         this.undefinedStepsNumber = undefinedStepsNumber;
         this.failedScenariosNumber = failedScenariosNumber;
         this.failedFeaturesNumber = failedFeaturesNumber;
-
         this.buildStatus = buildStatus;
+        this.sortingMethod = sortingMethod;
+    }
+
+    private static void log(TaskListener listener, String message) {
+        listener.getLogger().println("[CucumberReport] " + message);
+    }
+
+    public String getFileIncludePattern() {
+        return fileIncludePattern;
+    }
+
+    public List<Classification> getClassifications() {
+        return classifications;
     }
 
     @DataBoundSetter
@@ -80,8 +105,8 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         }
     }
 
-    public List<Classification> getClassifications() {
-        return classifications;
+    public int getTrendsLimit() {
+        return trendsLimit;
     }
 
     @DataBoundSetter
@@ -89,13 +114,112 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         this.trendsLimit = trendsLimit;
     }
 
-    public int getTrendsLimit() {
-        return trendsLimit;
+    public String getFileExcludePattern() {
+        return fileExcludePattern;
+    }
+
+    @DataBoundSetter
+    public void setFileExcludePattern(String fileExcludePattern) {
+        this.fileExcludePattern = fileExcludePattern;
+    }
+
+    public String getJsonReportDirectory() {
+        return jsonReportDirectory;
+    }
+
+    @DataBoundSetter
+    public void setJsonReportDirectory(String jsonReportDirectory) {
+        this.jsonReportDirectory = jsonReportDirectory;
+    }
+
+    public int getFailedStepsNumber() {
+        return failedStepsNumber;
+    }
+
+    @DataBoundSetter
+    public void setFailedStepsNumber(int failedStepsNumber) {
+        this.failedStepsNumber = failedStepsNumber;
+    }
+
+    public int getSkippedStepsNumber() {
+        return skippedStepsNumber;
+    }
+
+    @DataBoundSetter
+    public void setSkippedStepsNumber(int skippedStepsNumber) {
+        this.skippedStepsNumber = skippedStepsNumber;
+    }
+
+    public int getPendingStepsNumber() {
+        return pendingStepsNumber;
+    }
+
+    @DataBoundSetter
+    public void setPendingStepsNumber(int pendingStepsNumber) {
+        this.pendingStepsNumber = pendingStepsNumber;
+    }
+
+    public int getUndefinedStepsNumber() {
+        return undefinedStepsNumber;
+    }
+
+    @DataBoundSetter
+    public void setUndefinedStepsNumber(int undefinedStepsNumber) {
+        this.undefinedStepsNumber = undefinedStepsNumber;
+    }
+
+    public int getFailedScenariosNumber() {
+        return failedScenariosNumber;
+    }
+
+    @DataBoundSetter
+    public void setFailedScenariosNumber(int failedScenariosNumber) {
+        this.failedScenariosNumber = failedScenariosNumber;
+    }
+
+    public int getFailedFeaturesNumber() {
+        return failedFeaturesNumber;
+    }
+
+    @DataBoundSetter
+    public void setFailedFeaturesNumber(int failedFeaturesNumber) {
+        this.failedFeaturesNumber = failedFeaturesNumber;
+    }
+
+    public String getBuildStatus() {
+        return buildStatus;
+    }
+
+    @DataBoundSetter
+    public void setBuildStatus(String buildStatus) {
+        this.buildStatus = buildStatus;
+    }
+
+    public boolean isParallelTesting() {
+        return this.parallelTesting;
     }
 
     @DataBoundSetter
     public void setParallelTesting(boolean parallelTesting) {
         this.parallelTesting = parallelTesting;
+    }
+
+    @DataBoundSetter
+    public void setSortingMethod(String sortingMethod) {
+        this.sortingMethod = sortingMethod;
+    }
+
+    public String getSortingMethod() {
+        return sortingMethod;
+    }
+
+    @DataBoundSetter
+    public void setClassificationsFilePattern(String classificationsFilePattern) {
+        this.classificationsFilePattern = classificationsFilePattern;
+    }
+
+    public String getClassificationsFilePattern() {
+        return classificationsFilePattern;
     }
 
     @Override
@@ -104,9 +228,9 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
 
         generateReport(run, workspace, listener);
 
-        SafeArchiveServingRunAction caa = new SafeArchiveServingRunAction(new File(run.getRootDir(), ReportBuilder.BASE_DIRECTORY),
+        SafeArchiveServingRunAction caa = new SafeArchiveServingRunAction(run, new File(run.getRootDir(), ReportBuilder.BASE_DIRECTORY),
                 ReportBuilder.BASE_DIRECTORY, ReportBuilder.HOME_PAGE, CucumberReportBaseAction.ICON_NAME, Messages.SidePanel_DisplayName());
-        run.addAction(caa);
+        run.replaceAction(caa);
     }
 
     private void generateReport(Run<?, ?> build, FilePath workspace, TaskListener listener) throws InterruptedException, IOException {
@@ -121,16 +245,23 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         }
 
         // source directory (possibly on slave)
-        FilePath inputDirectory = new FilePath(workspace, jsonReportDirectory);
+        String parsedJsonReportDirectory = evaluateMacro(build, workspace, listener, jsonReportDirectory);
+        log(listener, String.format("JSON report directory is \"%s\"", parsedJsonReportDirectory));
+        FilePath inputDirectory = new FilePath(workspace, parsedJsonReportDirectory);
 
         File directoryForReport = build.getRootDir();
         File directoryJsonCache = new File(directoryForReport, ReportBuilder.BASE_DIRECTORY + File.separatorChar + ".cache");
-        if (directoryJsonCache.mkdir()) {
+        if (!directoryJsonCache.exists() && !directoryJsonCache.mkdirs()) {
             throw new IllegalStateException("Could not create directory for cache: " + directoryJsonCache);
         }
+        //Copies Json Files To Cache...
         int copiedFiles = inputDirectory.copyRecursiveTo(DEFAULT_FILE_INCLUDE_PATTERN, new FilePath(directoryJsonCache));
         log(listener, String.format("Copied %d json files from workspace \"%s\" to reports directory \"%s\"",
                 copiedFiles, inputDirectory.getRemote(), directoryJsonCache));
+        //Copies Classifications Files To Cache...
+        int copiedFilesProperties = inputDirectory.copyRecursiveTo(DEFAULT_FILE_INCLUDE_PATTERN_CLASSIFICATIONS, new FilePath(directoryJsonCache));
+        log(listener, String.format("Copied %d properties files from workspace \"%s\" to reports directory \"%s\"",
+                copiedFilesProperties, inputDirectory.getRemote(), directoryJsonCache));
 
         // exclude JSONs that should be skipped (as configured by the user)
         String[] jsonReportFiles = findJsonFiles(directoryJsonCache, fileIncludePattern, fileExcludePattern);
@@ -152,10 +283,17 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         configuration.setRunWithJenkins(true);
         configuration.setBuildNumber(buildNumber);
         configuration.setTrends(new File(trendsDir, TRENDS_FILE), trendsLimit);
+        // null checker because of the regression in 3.10.2
+        configuration.setSortingMethod(sortingMethod == null ? SortingMethod.NATURAL : SortingMethod.valueOf(sortingMethod));
+
         if (CollectionUtils.isNotEmpty(classifications)) {
-            for (Classification classification : classifications) {
-                configuration.addClassifications(classification.key, classification.value);
-            }
+            log(listener, String.format("Adding %d classifications", classifications.size()));
+            addClassificationsToBuildReport(build, workspace, listener, configuration, classifications);
+        }
+
+        List<String> classificationFiles = fetchPropertyFiles(directoryJsonCache, listener);
+        if(CollectionUtils.isNotEmpty(classificationFiles)) {
+            configuration.addClassificationFiles(classificationFiles);
         }
 
         ReportBuilder reportBuilder = new ReportBuilder(jsonFilesToProcess, configuration);
@@ -164,7 +302,7 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         if (hasReportFailed(result, listener)) {
             // redefine build result if it was provided by plugin configuration
             if (buildStatus != null) {
-                log(listener, "Build status is changed to " + buildStatus.toString());
+                log(listener, "Build status is changed to " + buildStatus);
                 build.setResult(Result.fromString(buildStatus));
             } else {
                 log(listener, "Build status is left unchanged");
@@ -174,6 +312,7 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
 
     private String[] findJsonFiles(File targetDirectory, String fileIncludePattern, String fileExcludePattern) {
         DirectoryScanner scanner = new DirectoryScanner();
+        scanner.setBasedir(targetDirectory);
 
         if (StringUtils.isEmpty(fileIncludePattern)) {
             scanner.setIncludes(new String[]{DEFAULT_FILE_INCLUDE_PATTERN});
@@ -196,7 +335,7 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         return fullPathList;
     }
 
-    boolean hasReportFailed(Reportable result, TaskListener listener) {
+    private boolean hasReportFailed(Reportable result, TaskListener listener) {
         // happens when the resport could not be generated
         if (result == null) {
             log(listener, "Missing report result - report was not successfully completed");
@@ -238,8 +377,44 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         return false;
     }
 
-    private static void log(TaskListener listener, String message) {
-        listener.getLogger().println("[CucumberReport] " + message);
+    private String evaluateMacro(Run<?, ?> build, FilePath workspace, TaskListener listener, String value) throws InterruptedException, IOException {
+        try {
+            return TokenMacro.expandAll(build, workspace, listener, value);
+        } catch (MacroEvaluationException e) {
+            log(listener, String.format("Could not evaluate macro '%s': %s", value, e.getMessage()));
+        }
+        return value;
+    }
+
+    private void addClassificationsToBuildReport(Run<?, ?> build, FilePath workspace, TaskListener listener, Configuration configuration, List<Classification> listToAdd) throws InterruptedException, IOException {
+        for (Classification classification : listToAdd) {
+            log(listener, String.format("Adding classification - %s:%s", classification.key, classification.value));
+            configuration.addClassifications(classification.key, evaluateMacro(build, workspace, listener, classification.value));
+        }
+    }
+
+    private List<String> fetchPropertyFiles(File targetDirectory, TaskListener listener) {
+        List<String> propertyFiles = new ArrayList<>();
+        if (StringUtils.isNotEmpty(classificationsFilePattern)) {
+            DirectoryScanner scanner = new DirectoryScanner();
+            scanner.setIncludes(new String[]{classificationsFilePattern});
+            scanner.setBasedir(targetDirectory);
+            scanner.setCaseSensitive(false);
+            scanner.scan();
+            propertyFiles = getFullMetaDataPath(scanner.getIncludedFiles(), targetDirectory.toString());
+            for (String propertyFile : propertyFiles) {
+                log(listener, String.format("Found Properties File - %s ", propertyFile));
+            }
+        }
+        return propertyFiles;
+    }
+
+    private List<String> getFullMetaDataPath(String[] files, String propertiesDirectory) {
+        List<String> fullPathList = new ArrayList<>();
+        for (String file : files) {
+            fullPathList.add(propertiesDirectory + File.separator + file);
+        }
+        return fullPathList;
     }
 
     @Override
@@ -247,12 +422,7 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         return BuildStepMonitor.NONE;
     }
 
-    @Override
-    public Action getProjectAction(AbstractProject<?, ?> project) {
-        return new CucumberReportProjectAction(project);
-    }
-
-    public static class Classification extends AbstractDescribableImpl<Classification> {
+    public static class Classification extends AbstractDescribableImpl<Classification> implements Serializable {
 
         public String key;
         public String value;
@@ -274,6 +444,7 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
     }
 
     @Extension
-    public static class DescriptorImpl extends CucumberReportBuildStepDescriptor {
+    @Symbol("cucumber")
+    public static class BuildStatusesDescriptorImpl extends CucumberReportDescriptor {
     }
 }

@@ -22,6 +22,12 @@
                 <f:textbox/>
             </f:entry>
             <f:entry
+                    title="${%classificationsFilePattern.title}"
+                    field="classificationsFilePattern"
+                    description="${%classificationsFilePattern.description}">
+                <f:textbox/>
+            </f:entry>
+            <f:entry
                     title="${%trendsLimit.title}"
                     field="trendsLimit"
                     description="${%trendsLimit.description}">
@@ -78,7 +84,6 @@
                     description="${%buildStatus.description}">
                 <f:select/>
             </f:entry>
-
         </f:section>
 
         <f:section title="${%otherSection}">
@@ -90,10 +95,18 @@
             </f:entry>
 
             <f:entry
+                    title="${%sortingMethod.title}"
+                    field="sortingMethod"
+                    description="${%sortingMethod.description}">
+                <f:select/>
+            </f:entry>
+
+            <f:entry
                     field="classifications"
                     description="${%classifications.description}">
                 <f:repeatableProperty field="classifications"/>
             </f:entry>
+
         </f:section>
 
     </f:advanced>
