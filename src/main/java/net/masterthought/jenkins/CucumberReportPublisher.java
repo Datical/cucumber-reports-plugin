@@ -259,7 +259,9 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         log(listener, String.format("Copied %d json files from workspace \"%s\" to reports directory \"%s\"",
                 copiedFiles, inputDirectory.getRemote(), directoryJsonCache));
         //Copies Classifications Files To Cache...
-        int copiedFilesProperties = inputDirectory.copyRecursiveTo(DEFAULT_FILE_INCLUDE_PATTERN_CLASSIFICATIONS, new FilePath(directoryJsonCache));
+        // Datical doesn't use these, and they cause problems sometimes, so don't do this.
+//        int copiedFilesProperties = inputDirectory.copyRecursiveTo(DEFAULT_FILE_INCLUDE_PATTERN_CLASSIFICATIONS, new FilePath(directoryJsonCache));
+        int copiedFilesProperties = 0;
         log(listener, String.format("Copied %d properties files from workspace \"%s\" to reports directory \"%s\"",
                 copiedFilesProperties, inputDirectory.getRemote(), directoryJsonCache));
 
