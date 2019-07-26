@@ -420,7 +420,9 @@ public class CucumberReportPublisher extends Publisher implements SimpleBuildSte
         }
 
         // removes cache which may run out of the free space on storage
-        FileUtils.deleteQuietly(directoryJsonCache);
+        // For Datical, we generate the report at the end of each stage, so we need to keep the files around
+        // until the final stage completes. 
+        //FileUtils.deleteQuietly(directoryJsonCache);
     }
 
     private String getPomVersion(TaskListener listener) {
